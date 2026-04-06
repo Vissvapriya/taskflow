@@ -9,6 +9,7 @@ function Login() {
   });
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,22 +33,44 @@ function Login() {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-    } else {
-      // Check credentials
-      if (formData.email === 'user@gmail.com' && formData.password === '12345') {
-        localStorage.setItem('isAuthenticated', 'true');
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/');
-        }, 2000); // Redirect after 2 seconds
-      } else {
-        setErrors({ general: 'Invalid email or password' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrors({ general: data.error || 'Login failed' });
+        return;
       }
+
+      // Store token and user info
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userId', data.user.id);
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } catch (error) {
+      setErrors({ general: 'Network error. Please try again.' });
+      console.error('Login error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,9 +129,10 @@ function Login() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
